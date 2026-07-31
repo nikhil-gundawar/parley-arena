@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Parley — multiplayer sessions for AI agents</title>
+<style>
+  :root{
+    --bg:#0b0d12; --panel:#12151d; --panel2:#171b25; --line:#232838;
+    --ink:#e8ecf5; --dim:#8b93a7; --accent:#7c5cff; --ok:#4ade80; --no:#ff5c8a; --warn:#ffd23d;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.55 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;height:100vh;display:flex;flex-direction:column}
+  header{display:flex;align-items:center;gap:14px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
+  .logo{font-weight:700;letter-spacing:-.3px}
+  .logo span{color:var(--accent)}
+  .sid{font-family:var(--mono);font-size:11px;color:var(--dim);background:var(--panel2);padding:3px 8px;border-radius:6px;border:1px solid var(--line)}
+  .who{display:flex;gap:6px;margin-left:auto;align-items:center;flex-wrap:wrap}
+  .av{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:700;color:#0b0d12;position:relative}
+  .av.typing::after{content:"";position:absolute;bottom:-2px;right:-2px;width:8px;height:8px;border-radius:50%;background:var(--ok);border:2px solid var(--panel)}
+  main{flex:1;display:grid;grid-template-columns:1fr 320px;min-height:0}
+  #stream{overflow-y:auto;padding:18px 20px;display:flex;flex-direction:column;gap:10px}
+  aside{border-left:1px solid var(--line);background:var(--panel);overflow-y:auto;padding:14px}
+  .ev{max-width:78%;padding:9px 44px 9px 13px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);white-space:pre-wrap;overflow-wrap:anywhere;position:relative}
+  .ev .nm{font-size:11px;color:var(--dim);margin-bottom:3px;font-weight:600;letter-spacing:.2px}
+  .ev.me{align-self:flex-end;background:#1b2033;border-color:#2c3350}
+  .ev.agent{border-left:2px solid var(--accent)}
+  .ev.think{opacity:.72;font-family:var(--mono);font-size:12.5px;border-style:dashed}
+  .ev.sys{align-self:center;background:transparent;border:none;color:var(--dim);font-size:12px;font-family:var(--mono)}
+  .ev.tool{font-family:var(--mono);font-size:12px;border-left:2px solid var(--warn)}
+  .ev.steer{border-left:2px solid var(--ok)}
+  .seq{position:absolute;top:6px;right:9px;font-family:var(--mono);font-size:10px;color:#3d4459;background:var(--panel2);padding:0 3px;border-radius:4px}
+  .forkbtn{position:absolute;bottom:-9px;right:8px;font-size:10px;font-family:var(--mono);background:var(--panel2);border:1px solid var(--line);color:var(--dim);border-radius:5px;padding:1px 6px;cursor:pointer;opacity:0;transition:.15s}
+  .ev:hover .forkbtn{opacity:1}
+  .forkbtn:hover{color:var(--accent);border-color:var(--accent)}
+  footer{border-top:1px solid var(--line);background:var(--panel);padding:10px 16px;display:flex;gap:8px;align-items:center}
+  input,button,select{font:inherit}
+  #box{flex:1;background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:9px;padding:9px 12px;outline:none}
+  #box:focus{border-color:var(--accent)}
+  button{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:9px;padding:9px 13px;cursor:pointer;transition:.15s}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  button.ghost{color:var(--dim);padding:7px 10px;font-size:12px}
+  .bar{display:flex;gap:6px;padding:8px 16px;border-bottom:1px solid var(--line);background:var(--panel);align-items:center;flex-wrap:wrap}
+  .pill{font-size:11px;font-family:var(--mono);color:var(--dim);border:1px solid var(--line);border-radius:20px;padding:2px 9px}
+  .pill.live{color:var(--ok);border-color:#1e4030}
+  h4{margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.9px;color:var(--dim)}
+  .card{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:11px;margin-bottom:10px}
+  .card.pending{border-color:#5a4a12;background:#1c1a10}
+  .card .t{font-family:var(--mono);font-size:12.5px;color:var(--warn);font-weight:600}
+  .card pre{margin:6px 0;font-size:11px;color:var(--dim);white-space:pre-wrap;font-family:var(--mono)}
+  .row{display:flex;gap:6px;margin-top:8px}
+  .row button{flex:1;padding:6px;font-size:12px}
+  .yes{border-color:#22553a;color:var(--ok)} .yes:hover{background:#12301f}
+  .no{border-color:#5a2337;color:var(--no)} .no:hover{background:#2c1220}
+  .tool{font-family:var(--mono);font-size:11.5px;color:var(--dim);padding:4px 0;border-bottom:1px dashed var(--line);display:flex;justify-content:space-between}
+  .risk-high{color:var(--no)} .risk-low{color:var(--ok)}
+  .modal{position:fixed;inset:0;background:#0b0d12ee;display:grid;place-items:center;z-index:9}
+  .modal .card{width:380px;padding:22px}
+  .modal input{width:100%;margin:8px 0;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:10px}
+  a{color:var(--accent)}
+</style>
+</head>
+<body>
+
+<div class="modal" id="gate">
+  <div class="card">
+    <h3 style="margin:0 0 4px">Join a Parley room</h3>
+    <p style="color:var(--dim);font-size:12.5px;margin:0 0 10px">Several humans, one agent, one shared timeline.</p>
+    <input id="nm" placeholder="your name" autofocus/>
+    <input id="rid" placeholder="session id (blank = start a new one)"/>
+    <button class="primary" style="width:100%;margin-top:6px" onclick="enter()">Enter room</button>
+  </div>
+</div>
+
+<header>
+  <div class="logo">par<span>ley</span></div>
+  <div class="sid" id="sid">—</div>
+  <button class="ghost" onclick="copyInvite()">copy invite link</button>
+  <div class="who" id="who"></div>
+</header>
+
+<div class="bar">
+  <button class="primary" onclick="send({op:'run'})">▶ Run agent</button>
+  <button onclick="send({op:'pause'})">⏸ Pause</button>
+  <button onclick="send({op:'resume'})">⏵ Resume</button>
+  <button onclick="send({op:'stop'})">⏹ Stop</button>
+  <button onclick="send({op:'wheel',take:!haveWheel})" id="wheelbtn">🎡 Take the wheel</button>
+  <button onclick="forkHere()">⑂ Fork here</button>
+  <a class="ghost" href="#" onclick="exportLog();return false;" style="text-decoration:none"><button class="ghost">⤓ Export log</button></a>
+  <span class="pill" id="status">offline</span>
+  <span class="pill" id="quorum"></span>
+</div>
+
+<main>
+  <div id="stream"></div>
+  <aside>
+    <h4>Awaiting the room</h4>
+    <div id="approvals"><div style="color:var(--dim);font-size:12px">Nothing pending. High-risk tool calls land here and block until humans agree.</div></div>
+    <h4 style="margin-top:18px">Tools</h4>
+    <div id="tools"></div>
+  </aside>
+</main>
+
+<footer>
+  <input id="box" placeholder="say something to the room…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();talk(event.metaKey||event.ctrlKey)}"/>
+  <button class="primary" onclick="talk(false)">Send</button>
+  <button onclick="talk(true)" title="Inject into the agent's context mid-run without restarting it">↯ Steer</button>
+</footer>
+
+<script>
+let ws, me, sid, haveWheel=false, thinkEl=null, people={}, calls={};
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+
+const qs=new URLSearchParams(location.search);
+if(qs.get('s')) $('rid').value=qs.get('s');
+if(qs.get('name')) $('nm').value=qs.get('name');
+$('nm').addEventListener('keydown',e=>{if(e.key==='Enter')enter()});
+$('rid').addEventListener('keydown',e=>{if(e.key==='Enter')enter()});
+
+async function enter(){
+  const name=$('nm').value.trim()||'anon';
+  let room=$('rid').value.trim();
+  if(!room){
+    const r=await fetch('/api/sessions',{method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({title:name+"'s room"})});
+    room=(await r.json()).id;
+  }
+  sid=room; $('gate').style.display='none'; $('sid').textContent=sid;
+  history.replaceState({},'', '?s='+sid);
+  loadTools(); connect(name);
+}
+
+function connect(name){
+  ws=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/ws/${sid}?name=${encodeURIComponent(name)}`);
+  ws.onopen=()=>{$('status').textContent='live';$('status').className='pill live'};
+  ws.onclose=()=>{$('status').textContent='disconnected';$('status').className='pill'};
+  ws.onmessage=e=>route(JSON.parse(e.data));
+}
+const send=o=>ws&&ws.readyState===1&&ws.send(JSON.stringify(o));
+
+function talk(steer){
+  const t=$('box').value.trim(); if(!t)return;
+  send(steer?{op:'steer',text:t}:{op:'message',text:t,run:true});
+  $('box').value='';
+}
+
+function route(m){
+  if(m.kind==='hello'){me=m.you; return}
+  if(m.kind==='snapshot'){
+    people={}; (m.participants||[]).forEach(p=>people[p.id]=p);
+    calls=m.tool_calls||{};
+    $('quorum').textContent='quorum '+m.quorum;
+    $('stream').innerHTML='';
+    (m.log||[]).forEach(render);
+    drawPeople(); drawApprovals(); return;
+  }
+  if(m.kind==='event'){ apply(m); render(m); }
+}
+
+function apply(e){
+  const p=e.payload||{};
+  if(e.type==='participant.joined') people[p.id]=p;
+  if(e.type==='participant.left' && people[e.actor]) people[e.actor].online=false;
+  if(e.type==='tool.requested') calls[p.id]=p;
+  if(e.type==='tool.vote' && calls[p.id]) calls[p.id].votes[e.actor]=p.approve;
+  if(e.type==='tool.approved' && calls[p.id]) calls[p.id].status='approved';
+  if(e.type==='tool.denied' && calls[p.id]) calls[p.id].status='denied';
+  if(e.type==='tool.result' && calls[p.id]) calls[p.id].status='done';
+  if(e.type==='wheel.taken'){haveWheel=(e.actor===me?.id); $('wheelbtn').textContent=haveWheel?'🎡 Release wheel':'🎡 '+(nameOf(e.actor))+' has the wheel'}
+  if(e.type==='wheel.released'){haveWheel=false; $('wheelbtn').textContent='🎡 Take the wheel'}
+  if(['participant.joined','participant.left'].includes(e.type)) drawPeople();
+  if(e.type.startsWith('tool.')) drawApprovals();
+}
+
+const nameOf=id=>people[id]?.name||(id==='agent'?'agent':id==='system'?'system':id);
+const colorOf=id=>people[id]?.color||'#8b93a7';
+
+function bubble(cls,name,html,seq){
+  const d=document.createElement('div');
+  d.className='ev '+cls;
+  d.innerHTML=(name?`<div class="nm">${esc(name)}</div>`:'')+html+
+    (seq!=null?`<div class="seq">#${seq}</div><button class="forkbtn" onclick="send({op:'fork',at_seq:${seq}})">⑂ fork here</button>`:'');
+  $('stream').appendChild(d); $('stream').scrollTop=1e9; return d;
+}
+
+function render(e){
+  const p=e.payload||{}, t=e.type;
+  if(t==='agent.token'){
+    if(!thinkEl) thinkEl=bubble('agent think','agent · thinking','<span class="tx"></span>',e.seq);
+    thinkEl.querySelector('.tx').textContent+=p.text; $('stream').scrollTop=1e9; return;
+  }
+  thinkEl=null;
+  if(t==='message')  return void bubble(e.actor===me?.id?'me':'', nameOf(e.actor), esc(p.text), e.seq);
+  if(t==='steer')    return void bubble('steer', nameOf(e.actor)+' · steering mid-run', esc(p.text), e.seq);
+  if(t==='agent.message') return void bubble(p.system?'sys':'agent', p.system?'':'agent', esc(p.text), e.seq);
+  if(t==='tool.requested') return void bubble('tool',null,`⚙ requests <b>${esc(p.name)}</b> <span class="risk-${p.risk}">[${p.risk}]</span> ${p.quorum?`· needs ${p.quorum} human ok`:'· auto'}<br><span style="color:var(--dim)">${esc(JSON.stringify(p.args))}</span>`,e.seq);
+  if(t==='tool.approved') return void bubble('sys',null,`✓ approved by ${esc(nameOf(e.actor))}`);
+  if(t==='tool.denied')   return void bubble('sys',null,`✕ denied (${esc(p.reason||'vetoed')}) by ${esc(nameOf(e.actor))}`);
+  if(t==='tool.result')   return void bubble('tool',null,`← <b>${esc(p.name)}</b> ${esc(JSON.stringify(p.result).slice(0,300))}`,e.seq);
+  if(t==='participant.joined') return void bubble('sys',null,`${esc(p.name)} joined`);
+  if(t==='participant.left')   return void bubble('sys',null,`${esc(nameOf(e.actor))} left`);
+  if(t==='run.started')  return void bubble('sys',null,'— agent run started —');
+  if(t==='run.finished') return void bubble('sys',null,'— agent run finished'+(p.halted?' ('+esc(p.halted)+')':'')+' —');
+  if(t==='run.failed')   return void bubble('sys',null,'⚠ '+esc(p.error));
+  if(t==='session.forked') return void bubble('sys',null,`⑂ forked from ${esc(p.parent)} at #${p.at_seq}`);
+  if(t==='session.created') return void bubble('sys',null,'session created');
+}
+
+function drawPeople(){
+  $('who').innerHTML=Object.values(people).filter(p=>p.online)
+    .map(p=>`<div class="av" style="background:${p.color}" title="${esc(p.name)}">${esc(p.name.slice(0,2).toUpperCase())}</div>`).join('')
+    +`<span class="pill">${Object.values(people).filter(p=>p.online).length} online</span>`;
+}
+
+function drawApprovals(){
+  const pend=Object.values(calls).filter(c=>c.status==='pending');
+  if(!pend.length){$('approvals').innerHTML='<div style="color:var(--dim);font-size:12px">Nothing pending. High-risk tool calls land here and block until humans agree.</div>';return}
+  $('approvals').innerHTML=pend.map(c=>{
+    const yes=Object.values(c.votes||{}).filter(Boolean).length;
+    return `<div class="card pending">
+      <div class="t">${esc(c.name)} <span class="risk-${c.risk}">[${c.risk}]</span></div>
+      <pre>${esc(JSON.stringify(c.args,null,1))}</pre>
+      <div style="font-size:11px;color:var(--dim)">${yes}/${c.quorum} approvals · any veto kills it</div>
+      <div class="row">
+        <button class="yes" onclick="send({op:'vote',call_id:'${c.id}',approve:true})">Approve</button>
+        <button class="no"  onclick="send({op:'vote',call_id:'${c.id}',approve:false})">Veto</button>
+      </div></div>`;
+  }).join('');
+}
+
+async function loadTools(){
+  const t=await (await fetch('/api/tools')).json();
+  $('tools').innerHTML=t.map(x=>`<div class="tool"><span>${esc(x.name)}</span><span class="risk-${x.risk}">${x.risk}</span></div>`).join('');
+}
+function forkHere(){ send({op:'fork'}); }
+function exportLog(){ window.open('/api/sessions/'+sid+'/export','_blank'); }
+function copyInvite(){ navigator.clipboard?.writeText(location.origin+'?s='+sid); }
+</script>
+</body>
+</html>
