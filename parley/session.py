@@ -6,8 +6,9 @@ import asyncio
 import json
 import time
 import uuid
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from .events import AGENT, SYSTEM, Event, EventType, Participant, ToolCall
 
@@ -257,7 +258,7 @@ class Session:
 
     # -------------------------------------------------------------- forking
 
-    def fork(self, at_seq: int | None = None, title: str | None = None) -> "Session":
+    def fork(self, at_seq: int | None = None, title: str | None = None) -> Session:
         """Branch this session into a parallel timeline at `at_seq`.
 
         The child replays the parent's events up to that point, so it is a bit
@@ -306,7 +307,7 @@ class Session:
         return path
 
     @classmethod
-    def replay(cls, data: dict[str, Any] | str | Path) -> "Session":
+    def replay(cls, data: dict[str, Any] | str | Path) -> Session:
         """Rebuild a session exactly from its log. No network, no model, no luck."""
         if isinstance(data, (str, Path)):
             data = json.loads(Path(data).read_text())
@@ -333,7 +334,7 @@ class Session:
         s._steering = []  # steering is consumed at runtime, not part of replayed state
         return s
 
-    def diff(self, other: "Session") -> dict[str, Any]:
+    def diff(self, other: Session) -> dict[str, Any]:
         """Compare two timelines from their common ancestor forward."""
         common = 0
         for a, b in zip(self.log, other.log):

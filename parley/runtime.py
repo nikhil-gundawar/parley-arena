@@ -14,7 +14,8 @@ from typing import Any, Protocol
 
 from .events import AGENT, Event, EventType, ToolCall
 from .session import Session
-from .tools import ToolRegistry, registry as default_registry
+from .tools import ToolRegistry
+from .tools import registry as default_registry
 
 
 class ToolDenied(Exception):
