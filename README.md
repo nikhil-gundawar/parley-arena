@@ -36,8 +36,7 @@ No API key needed to try it — a scripted agent ships in the box. Set
 `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` and it swaps to a real model automatically.
 
 <div align="center">
-<img src="docs/screenshot.png" width="880" alt="Two people in one Parley room, voting on a refund the agent wants to issue"/>
-<br/><em>alice and bob in one room. The agent wants to move $75. It doesn't move until they both say yes.</em>
+<img src="docs/demo.gif" width="880" alt="Two people in one Parley room: bob steers the running agent from $240 to $75, then both approve before the refund executes"/><br/><em>alice and bob in one room. The agent wants to move $75. It doesn't move until they both say yes.</em>
 </div>
 
 ---
